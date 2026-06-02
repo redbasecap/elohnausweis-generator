@@ -24,6 +24,31 @@ python -m elohnausweis_generator \
   --validate
 ```
 
+Generate XML from structured JSON instead of parsing a PDF:
+
+```bash
+python -m elohnausweis_generator \
+  --json-in "examples/salary_certificate.example.json" \
+  --out "../build/elohnausweis.xml" \
+  --validate
+```
+
+Use `--json-in -` to read the JSON object from stdin:
+
+```bash
+cat examples/salary_certificate.example.json | python -m elohnausweis_generator \
+  --json-in - \
+  --out "../build/elohnausweis.xml"
+```
+
+Prompt for the required fields in the terminal:
+
+```bash
+python -m elohnausweis_generator \
+  --interactive \
+  --out "../build/elohnausweis.xml"
+```
+
 To also render the official PDF through the eLohnausweis SSK web application:
 
 ```bash
@@ -70,7 +95,13 @@ PYTHONPATH=src python -m unittest discover -s tests
 
 ## Current scope
 
-The parser currently supports one text-readable Lohnausweis per PDF and extracts:
+Input can come from:
+
+- a text-readable Lohnausweis PDF
+- a structured JSON object
+- an interactive terminal prompt
+
+The PDF parser currently supports one text-readable Lohnausweis per PDF and extracts:
 
 - certificate type
 - AHV/SV number and date of birth
@@ -81,3 +112,46 @@ The parser currently supports one text-readable Lohnausweis per PDF and extracts
 
 The XML writer is intentionally broader than the first parser and exposes a data
 model that can later be filled from CSV, JSON, payroll systems, or manual input.
+
+## JSON shape
+
+Minimal single-certificate input:
+
+```json
+{
+  "accounting_period": 2025,
+  "creation_datetime": "2025-12-31T12:00:00",
+  "employer": {
+    "name": "Example Company AG",
+    "address": {
+      "street": "Example Street 1",
+      "zip_code": "8000",
+      "city": "Zurich"
+    },
+    "phone": "0440000000"
+  },
+  "employee": {
+    "first_name": "Max",
+    "last_name": "Muster",
+    "address": {
+      "street": "Sample Road 2",
+      "zip_code": "3000",
+      "city": "Bern"
+    },
+    "social_security_number": "756.0000.0000.00",
+    "date_of_birth": "1990-02-01"
+  },
+  "certificate": {
+    "year": 2025,
+    "period_from": "2025-01-01",
+    "period_until": "2025-12-31",
+    "income": "1000.00",
+    "gross_income": "1000.00",
+    "social_security_contributions": "100.00",
+    "net_income": "900.00"
+  }
+}
+```
+
+For multiple employees, use `employees` with one or more `certificates` per
+employee. See `examples/salary_certificate.example.json` for the field names.

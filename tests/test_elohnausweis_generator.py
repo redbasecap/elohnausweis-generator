@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import io
+import json
+import tempfile
 import unittest
 from datetime import date
+from pathlib import Path
 
-from elohnausweis_generator import parse_pdf_text
+from elohnausweis_generator import declaration_from_dict, declaration_from_json, parse_pdf_text, prompt_declaration
 from elohnausweis_generator.cli import _apply_period_overrides
 from elohnausweis_generator.xml_writer import NS, build_xml_tree
 
@@ -43,6 +47,34 @@ Musterweg 2
 8001 Zuerich
 0441234567
 """
+
+
+STRUCTURED_SAMPLE = {
+    "accounting_period": 2025,
+    "creation_datetime": "2025-12-31T12:00:00",
+    "employer": {
+        "name": "Example Company AG",
+        "address": {"street": "Example Street 1", "zip_code": "8000", "city": "Zurich"},
+        "phone": "0440000000",
+    },
+    "employee": {
+        "first_name": "Max",
+        "last_name": "Muster",
+        "address": {"street": "Sample Road 2", "zip_code": "3000", "city": "Bern"},
+        "social_security_number": "756.0000.0000.00",
+        "date_of_birth": "1990-02-01",
+    },
+    "certificate": {
+        "year": 2025,
+        "period_from": "2025-01-01",
+        "period_until": "2025-12-31",
+        "income": "1000.00",
+        "gross_income": "1000.00",
+        "social_security_contributions": "100.00",
+        "net_income": "900.00",
+        "free_transport": "false",
+    },
+}
 
 
 class ElohnausweisGeneratorTest(unittest.TestCase):
@@ -94,6 +126,56 @@ class ElohnausweisGeneratorTest(unittest.TestCase):
         certificate = updated.employee_salaries[0].certificates[0]
         self.assertEqual(certificate.period_from, date(2025, 4, 28))
         self.assertEqual(certificate.period_until, date(2025, 7, 31))
+
+    def test_declaration_from_structured_dict(self) -> None:
+        declaration = declaration_from_dict(STRUCTURED_SAMPLE)
+
+        self.assertEqual(declaration.employer.name, "Example Company AG")
+        self.assertEqual(declaration.employee_salaries[0].employee.address.city, "Bern")
+        self.assertEqual(str(declaration.employee_salaries[0].certificates[0].net_income), "900.00")
+        self.assertFalse(declaration.employee_salaries[0].certificates[0].free_transport)
+
+    def test_declaration_from_json_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "input.json"
+            path.write_text(json.dumps(STRUCTURED_SAMPLE), encoding="utf-8")
+
+            declaration = declaration_from_json(path)
+
+        self.assertEqual(declaration.accounting_period, 2025)
+        self.assertEqual(declaration.employee_salaries[0].certificates[0].period_until, date(2025, 12, 31))
+
+    def test_prompt_declaration_builds_structured_input(self) -> None:
+        answers = "\n".join(
+            [
+                "Example Company AG",
+                "Example Street 1",
+                "8000",
+                "Zurich",
+                "0440000000",
+                "Max",
+                "Muster",
+                "Sample Road 2",
+                "3000",
+                "Bern",
+                "756.0000.0000.00",
+                "1990-02-01",
+                "2025",
+                "2025-01-01",
+                "2025-12-31",
+                "1000.00",
+                "1000.00",
+                "100.00",
+                "900.00",
+                "2025-12-31T12:00:00",
+            ]
+        )
+
+        declaration = prompt_declaration(stdin=io.StringIO(answers + "\n"), stdout=io.StringIO())
+
+        self.assertEqual(declaration.employer.name, "Example Company AG")
+        self.assertEqual(declaration.employee_salaries[0].employee.first_name, "Max")
+        self.assertEqual(str(declaration.employee_salaries[0].certificates[0].gross_income), "1000.00")
 
 
 if __name__ == "__main__":

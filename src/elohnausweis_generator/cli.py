@@ -12,6 +12,7 @@ from pathlib import Path
 from .model import SalaryDeclaration
 from .pdf_parser import parse_pdf
 from .ssk_renderer import render_pdf_with_ssk
+from .structured_input import declaration_from_json, prompt_declaration
 from .xml_writer import write_xml
 
 
@@ -22,6 +23,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Generate eLohnausweis SSK-compatible XML.")
     parser.add_argument("--pdf", type=Path, help="Input Lohnausweis PDF.")
     parser.add_argument("--xml-in", type=Path, help="Existing eLohnausweis XML to validate or render.")
+    parser.add_argument("--json-in", type=Path, help="Structured JSON input path. Use '-' to read JSON from stdin.")
+    parser.add_argument("--interactive", action="store_true", help="Prompt for structured salary certificate data in the terminal.")
     parser.add_argument("--out", type=Path, help="Output XML path.")
     parser.add_argument("--validate", action="store_true", help="Validate XML against the eLohnausweis SSK XSD.")
     parser.add_argument("--schema", type=Path, help="Local SalaryDeclarationElohnOnline.xsd path.")
@@ -34,10 +37,10 @@ def main(argv: list[str] | None = None) -> int:
 
     xml_path = _resolve_xml_path(args, parser)
     if args.xml_in and (args.period_from or args.period_until):
-        parser.error("--period-from/--period-until can only be used while generating XML from --pdf.")
+        parser.error("--period-from/--period-until can only be used while generating XML.")
 
-    if args.pdf:
-        declaration = parse_pdf(args.pdf)
+    declaration = _build_declaration(args)
+    if declaration is not None:
         declaration = _apply_period_overrides(
             declaration,
             period_from=args.period_from,
@@ -60,18 +63,28 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _resolve_xml_path(args: argparse.Namespace, parser: argparse.ArgumentParser) -> Path:
-    if args.pdf and args.xml_in:
-        parser.error("Use either --pdf or --xml-in, not both.")
-    if args.pdf:
+    selected_sources = [bool(args.pdf), bool(args.xml_in), bool(args.json_in), bool(args.interactive)]
+    if sum(selected_sources) != 1:
+        parser.error("Use exactly one of --pdf, --xml-in, --json-in, or --interactive.")
+    if args.pdf or args.json_in or args.interactive:
         if not args.out:
-            parser.error("--out is required with --pdf.")
+            parser.error("--out is required when generating XML.")
         return args.out
     if args.xml_in:
         if args.out:
-            parser.error("--out is only used when generating XML from --pdf.")
+            parser.error("--out is only used when generating XML.")
         return args.xml_in
-    parser.error("Either --pdf or --xml-in is required.")
     raise AssertionError("unreachable")
+
+
+def _build_declaration(args: argparse.Namespace) -> SalaryDeclaration | None:
+    if args.pdf:
+        return parse_pdf(args.pdf)
+    if args.json_in:
+        return declaration_from_json(args.json_in)
+    if args.interactive:
+        return prompt_declaration()
+    return None
 
 
 def _parse_cli_date(value: str) -> date:

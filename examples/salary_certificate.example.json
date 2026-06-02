@@ -1,0 +1,35 @@
+{
+  "accounting_period": 2025,
+  "creation_datetime": "2025-12-31T12:00:00",
+  "employer": {
+    "name": "Example Company AG",
+    "address": {
+      "street": "Example Street 1",
+      "zip_code": "8000",
+      "city": "Zurich"
+    },
+    "phone": "0440000000",
+    "contact_name": "Payroll Office"
+  },
+  "employee": {
+    "first_name": "Max",
+    "last_name": "Muster",
+    "address": {
+      "street": "Sample Road 2",
+      "zip_code": "3000",
+      "city": "Bern"
+    },
+    "social_security_number": "756.0000.0000.00",
+    "date_of_birth": "1990-02-01"
+  },
+  "certificate": {
+    "certificate_type": "LOHNAUSWEIS",
+    "year": 2025,
+    "period_from": "2025-01-01",
+    "period_until": "2025-12-31",
+    "income": "1000.00",
+    "gross_income": "1000.00",
+    "social_security_contributions": "100.00",
+    "net_income": "900.00"
+  }
+}
