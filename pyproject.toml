@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "elohnausweis-generator"
+version = "0.1.0"
+description = "Generate eLohnausweis SSK-compatible XML from Swiss salary certificate PDFs."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "redbasecap" }]
+dependencies = []
+
+[project.scripts]
+elohnausweis-generate = "elohnausweis_generator.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

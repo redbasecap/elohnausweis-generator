@@ -1,0 +1,83 @@
+# eLohnausweis Generator
+
+Small Python package for generating eLohnausweis SSK-compatible XML from a Swiss
+salary certificate PDF.
+
+The generated XML targets the `SalaryDeclarationElohnOnline.xsd` format used by
+the official eLohnausweis SSK online application. The SSK application can then
+open/import the XML and create the final Lohnausweis PDF with barcode.
+
+Official references:
+
+- eLohnausweis SSK online: https://www.elohnausweis-ssk.ch/
+- eLohnausweis XML schema: https://www.elohnausweis-ssk.ch/de/assets/documents/SalaryDeclarationElohnOnline.xsd
+- User manual: https://www.elohnausweis-ssk.ch/de/assets/documents/Benutzerhandbuch_eLA.pdf
+
+## Usage
+
+From this directory:
+
+```bash
+python -m elohnausweis_generator \
+  --pdf "/path/to/Lohnausweis.pdf" \
+  --out "../build/elohnausweis.xml" \
+  --validate
+```
+
+To also render the official PDF through the eLohnausweis SSK web application:
+
+```bash
+python -m elohnausweis_generator \
+  --pdf "/path/to/Lohnausweis.pdf" \
+  --out "../build/elohnausweis.xml" \
+  --period-from 2025-04-28 \
+  --period-until 2025-07-31 \
+  --validate \
+  --ssk-pdf "../build/elohnausweis.pdf"
+```
+
+You can also render an already generated XML:
+
+```bash
+python -m elohnausweis_generator \
+  --xml-in "../build/elohnausweis.xml" \
+  --ssk-pdf "../build/elohnausweis.pdf"
+```
+
+The SSK PDF renderer uses the public SSK web app in a headless browser via
+Playwright. Install Playwright separately when using this mode:
+
+```bash
+python -m pip install playwright
+python -m playwright install chromium
+```
+
+The rendered PDF is the official SSK web app output. Its "Ort und Datum" date is
+set by the SSK app at render time.
+
+`--validate` downloads the official XSD to a temporary directory and validates
+the result with `xmllint` when available. The validator applies a local
+compatibility fix for the current SSK XSD, where one internal type reference is
+missing its namespace prefix and one unused complex type is not accepted by
+`xmllint`.
+
+For local development without installing the package:
+
+```bash
+PYTHONPATH=src python -m elohnausweis_generator --help
+PYTHONPATH=src python -m unittest discover -s tests
+```
+
+## Current scope
+
+The parser currently supports one text-readable Lohnausweis per PDF and extracts:
+
+- certificate type
+- AHV/SV number and date of birth
+- year and employment period
+- employee name/address
+- employer name/address/phone
+- salary figures 1, 8, 9, and 11
+
+The XML writer is intentionally broader than the first parser and exposes a data
+model that can later be filled from CSV, JSON, payroll systems, or manual input.
